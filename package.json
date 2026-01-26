@@ -1,0 +1,35 @@
+{
+  "name": "flow-api-engine",
+  "version": "2.0.1",
+  "description": "A lightweight Node.js library to execute dependency-aware API workflows using a single declarative flow definition.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "flow-api",
+    "api-orchestration",
+    "workflow-engine",
+    "dependency-aware",
+    "dag-workflow",
+    "rest-api",
+    "graphql",
+    "api-gateway",
+    "backend-for-frontend",
+    "api-aggregation",
+    "nodejs",
+    "typescript",
+    "service-orchestration",
+    "declarative-api"
+  ],
+  "author": "Zubair Shareef",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node-fetch": "^2.6.4"
+  }
+}
