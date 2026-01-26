@@ -1,89 +1,100 @@
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-# 🌊 Flow API Engine
+🌊 Flow API Engine
+Declarative, Dependency-Aware API Orchestration for Node.js
 
-**Flow API Engine** is a lightweight Node.js library that enables developers to **define and execute multi-step, dependency-aware API workflows using a single declarative flow definition**.
+1. Introduction
+Modern applications rarely depend on a single API. Most real-world features require multiple dependent API calls, data transformations, and aggregation logic.
+Flow API Engine is a lightweight Node.js library that introduces a flow-based execution model for APIs. Instead of writing imperative code to chain APIs manually, developers define a declarative flow describing:
+* which APIs to call
+* how they depend on each other
+* how data flows between them
+The engine takes care of execution order, dependency resolution, and result aggregation.
 
-Instead of manually chaining multiple REST API calls in code, Flow API Engine allows you to describe the **execution flow**, and the engine automatically handles:
+2. Motivation
+2.1 The Traditional REST Problem
+Consider a simple requirement:
+“Fetch a user, then fetch their posts, then count total posts.”
+Traditional approach:
+Client
+ ├─ Call /users/1
+ ├─ Extract userId
+ ├─ Call /posts?userId=1
+ ├─ Process response
+ └─ Return result
+Problems:
+* Multiple sequential network calls
+* Tight coupling between APIs
+* Hardcoded execution logic
+* Difficult to change flow later
+* Client or backend becomes complex
 
-* execution order
-* dependency resolution
-* data passing between APIs
+2.2 Existing Solutions & Gaps
+Technology	Limitation
+REST	No orchestration or dependency support
+GraphQL	Focused on data fetching, not execution flow
+Workflow engines	Heavy, infrastructure-intensive
+Custom code	Error-prone and hard to maintain
+3. What is Flow API Engine?
+Flow API Engine is a declarative orchestration layer that sits on top of REST APIs.
+You define what should happen, not how to chain it.
+Client → Flow Definition → Flow Engine → Final Result
 
----
+4. Core Concepts
+4.1 Flow
+A flow is a JSON object that describes an entire workflow.
+{
+  "nodes": { }
+}
+Each flow contains multiple nodes.
 
-## 📌 What Problem Does This Solve?
+4.2 Node
+A node represents a single execution step.
+Supported node types:
+* http – executes an HTTP API
+* transform – processes data using JavaScript
+Each node:
+* has a unique ID
+* may depend on other nodes
+* produces an output stored in context
 
-In real-world applications, a single feature often requires **multiple API calls**.
+4.3 Dependency Resolution
+Dependencies are declared using:
+"depends_on": ["nodeId"]
+The engine:
+* builds a dependency graph (DAG)
+* executes nodes only when dependencies are resolved
+* detects circular dependencies automatically
 
-### Traditional REST approach
+4.4 Context
+All node outputs are stored in a shared context object:
+context = {
+  user: {...},
+  posts: [...]
+}
+This context is accessible to downstream nodes.
 
-```text
-Client → API 1 → API 2 → API 3 → Merge responses manually
-```
+5. Installation
+npm install @your-username/flow-api-engine
 
-This leads to:
-
-* Multiple network requests
-* Complex client or backend logic
-* Hardcoded execution order
-* Poor maintainability
-
----
-
-### Flow API approach
-
-```text
-Client → One Flow Definition → Engine executes everything
-```
-
-✔ Single request
-✔ Automatic dependency handling
-✔ Cleaner and more flexible architecture
-
----
-
-## ✨ Key Features
-
-* 🔗 **Dependency-aware execution** using a DAG (Directed Acyclic Graph)
-* 🔄 **Automatic data passing** between APIs
-* 🧾 **Declarative JSON flow definition**
-* 🌐 **HTTP API execution support**
-* 🔧 **Transform nodes** for data processing and aggregation
-* ⚡ Lightweight and easy to integrate with Node.js backends
-
----
-
-## 📦 Installation
-
-```bash
-npm install flow-api-engine
-```
-
-
-
----
-
-## 🧠 Basic Usage
-
-```ts
-import { FlowEngine } from "flow-api-engine";
+6. Basic Example
+Example: Fetch User & Extract Data
+import { FlowEngine } from "@your-username/flow-api-engine";
 
 const engine = new FlowEngine();
 
 const result = await engine.execute({
   nodes: {
-    getUser: {
+    user: {
       type: "http",
       url: "https://jsonplaceholder.typicode.com/users/1"
     },
-    extractUser: {
+    summary: {
       type: "transform",
-      depends_on: ["getUser"],
+      depends_on: ["user"],
       script: `
         return {
-          name: context.getUser.name,
-          email: context.getUser.email
+          name: context.user.name,
+          email: context.user.email
         };
       `
     }
@@ -91,208 +102,142 @@ const result = await engine.execute({
 });
 
 console.log(result);
-```
 
----
-
-## 📤 Output Example
-
-```json
+7. Output Structure
 {
-  "getUser": {
+  "user": {
     "id": 1,
     "name": "Leanne Graham",
     "email": "Sincere@april.biz"
   },
-  "extractUser": {
+  "summary": {
     "name": "Leanne Graham",
     "email": "Sincere@april.biz"
   }
 }
-```
+Each node’s output is included in the final response.
 
----
-
-## 🔁 Flow Definition Structure
-
-```json
-{
-  "nodes": {
-    "<nodeId>": {
-      "type": "http | transform",
-      "depends_on": ["otherNodeId"],
-      "method": "GET | POST",
-      "url": "https://api.example.com",
-      "body": {},
-      "script": "JavaScript code"
-    }
-  }
-}
-```
-
-* Each **node** represents one execution step
-* `depends_on` controls execution order
-* Nodes run automatically when dependencies are satisfied
-
----
-
-## 🔗 Supported Node Types
-
-### 1️⃣ HTTP Node
-
-Used to call REST APIs.
-
-```json
-{
-  "type": "http",
-  "method": "POST",
-  "url": "https://api.example.com/order",
-  "body": {
-    "userId": "{{nodes.getUser.id}}",
-    "item": "Laptop"
-  }
-}
-```
-
----
-
-### 2️⃣ Transform Node
-
-Used to process, merge, or summarize data.
-
-```json
-{
-  "type": "transform",
-  "depends_on": ["getUser"],
-  "script": "return { username: context.getUser.name };"
-}
-```
-
----
-
-## 🔄 Data Passing Between Nodes (Core Concept)
-
-Flow API Engine supports **dynamic value substitution** using templates:
-
-```text
+8. Dynamic Data Passing (Key Feature)
+Flow API Engine supports dynamic value substitution using templates:
 {{nodes.<nodeId>.<property>}}
-```
+Example:
+"url": "https://api.com/posts?userId={{nodes.user.id}}"
+At runtime, this becomes:
+https://api.com/posts?userId=1
+Works in:
+* URLs
+* Request bodies
+* Nested objects
 
-### Examples
-
-**Inside transform scripts**
-
-```ts
-context.getUser.name
-```
-
-**Inside request bodies or URLs**
-
-```json
-"userId": "{{nodes.getUser.id}}"
-```
-
-This allows one API’s response to be used directly in another API call.
-
----
-
-## 🧪 Example: Dependent POST Requests
-
-```ts
+9. Example: Dependent API Calls
+Problem
+Fetch a user, then fetch their posts.
 engine.execute({
   nodes: {
-    createUser: {
+    user: {
       type: "http",
-      method: "POST",
-      url: "https://jsonplaceholder.typicode.com/users",
-      body: { name: "Zubair" }
+      url: "https://jsonplaceholder.typicode.com/users/1"
     },
-    createOrder: {
+    posts: {
       type: "http",
-      depends_on: ["createUser"],
-      method: "POST",
-      url: "https://jsonplaceholder.typicode.com/posts",
-      body: {
-        userId: "{{nodes.createUser.id}}",
-        product: "Laptop"
-      }
+      depends_on: ["user"],
+      url: "https://jsonplaceholder.typicode.com/posts?userId={{nodes.user.id}}"
     }
   }
 });
-```
----
 
-## 🧪 Example: Better Long Example
+10. Example: Multiple Dependencies
+Fetch posts + todos, then summarize
+engine.execute({
+  nodes: {
+    posts: {
+      type: "http",
+      url: "https://jsonplaceholder.typicode.com/posts?userId=1"
+    },
+    todos: {
+      type: "http",
+      url: "https://jsonplaceholder.typicode.com/todos?userId=1"
+    },
+    summary: {
+      type: "transform",
+      depends_on: ["posts", "todos"],
+      script: `
+        return {
+          totalPosts: context.posts.length,
+          totalTodos: context.todos.length
+        };
+      `
+    }
+  }
+});
 
-```ts
-await engine.execute({
-        nodes: {
-          user: {
-            type: "http",
-            url: "https://jsonplaceholder.typicode.com/users/1"
-          },
-          posts: {
-            type: "http",
-            depends_on: ["user"],
-            url: "https://jsonplaceholder.typicode.com/posts?userId={{nodes.user.id}}"
-          },
-          todos: {
-            type: "http",
-            depends_on: ["user"],
-            url: "https://jsonplaceholder.typicode.com/todos?userId={{nodes.user.id}}"
-          },
-          summary: {
-            type: "transform",
-            depends_on: ["posts", "todos"],
-            script: "return { totalPosts: context.posts.length, totalTodos: context.todos.length };"
-          }
-        }
-      });
-```
----
+11. Transform Node Explained
+Transform nodes allow business logic without extra APIs.
+{
+  "type": "transform",
+  "depends_on": ["posts"],
+  "script": "return { count: context.posts.length };"
+}
+Use cases:
+* aggregation
+* filtering
+* reshaping responses
+* computed fields
 
-## 🧩 Internal Architecture (High Level)
+12. Execution Model
+1. Flow is submitted
+2. Nodes are validated
+3. Dependency graph is created
+4. Nodes execute in correct order
+5. Results stored in context
+6. Final response returned
 
-```
+13. Error Handling
+* ❌ Circular dependencies → explicit error
+* ❌ Missing dependency → execution blocked
+* ❌ HTTP failure → error propagated
+* ❌ Script error → transform failure reported
+
+14. Use Cases
+* Backend-for-Frontend (BFF)
+* API aggregation services
+* Microservice orchestration
+* Automation workflows
+* Reporting pipelines
+* College & research projects
+
+15. Comparison with REST & GraphQL
+Feature	REST	GraphQL	Flow API
+Execution order	❌	❌	✅
+Dependencies	❌	❌	✅
+Single request	❌	✅	✅
+Workflow logic	❌	❌	✅
+16. Architecture Overview
 FlowEngine
- ├─ Flow Executor
+ ├─ Flow Validator
  ├─ Dependency Resolver (DAG)
- ├─ Context Store
+ ├─ Template Resolver
  ├─ HTTP Node Executor
- └─ Transform Executor
-```
+ ├─ Transform Node Executor
+ └─ Context Store
 
----
-
-## ⚠️ Limitations
-
-* Sequential execution only (parallel execution planned)
-* Transform scripts are not sandboxed (trusted input recommended)
+17. Limitations
+* Sequential execution only
+* Transform scripts not sandboxed
 * Not intended for long-running workflows
 
----
-
-## 🔮 Roadmap
-
-* Parallel node execution
-* Retry and timeout policies
+18. Future Enhancements
+* Parallel execution
 * Conditional branching
+* Retry & timeout policies
 * Secure transform sandbox
 * Visual flow designer
 
----
+19. License
+MIT License © 2026 Zubair Shareef
 
-## 📄 License
+20. Conclusion
+Flow API Engine demonstrates a new way to design APIs — not as isolated endpoints, but as orchestrated execution flows.
+It simplifies backend logic, improves maintainability, and provides a strong foundation for complex workflows.
 
-MIT License
-
----
-
-## ⭐ Summary
-
-**Flow API Engine** simplifies backend orchestration by allowing developers to define **what should happen**, instead of hardcoding **how API calls should be chained**.
-
-
-## Contact 
-https://www.linkedin.com/in/zubair-shareef
 
